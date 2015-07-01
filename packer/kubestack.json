@@ -1,24 +1,54 @@
 {
     "variables": {
-    "account_file": "{{env `ACCOUNT_FILE`}}",
-    "project_id": "{{env `PROJECT_ID`}}",
     "source_image": "{{env `SOURCE_IMAGE`}}",
-    "zone": "{{env `ZONE`}}",
+    "region": "{{env `REGION`}}",
     "image_name": "{{env `IMAGE_NAME`}}",
     "image_description": "{{env `IMAGE_DESCRIPTION`}}",
     "machine_type": "{{env `MACHINE_TYPE`}}",
-    "kube_binaries": "{{env `KUBE_BINARIES`}}"
+    "kube_binaries": "{{env `KUBE_BINARIES`}}",
+    "security_group": "{{env `SECURITY_GROUP`}}",
+    "subnet_id": "{{env `SUBNET_ID`}}"
     },
     "builders": [{
-        "type": "googlecompute",
-        "account_file": "{{user `account_file`}}",
-        "project_id": "{{user `project_id`}}",
-        "source_image": "{{user `source_image`}}",
-        "zone": "{{user `zone`}}",
-        "disk_size": 100,
-        "image_name": "{{user `image_name`}}",
-        "image_description": "{{user `image_description`}}",
-        "machine_type": "{{user `machine_type`}}",
+        "type": "amazon-ebs",
+        "source_ami": "{{user `source_image`}}",
+        "region": "{{user `region`}}",
+        "security_group_id": "{{user `security_group`}}",
+        "subnet_id": "{{user `subnet_id`}}",
+        "associate_public_ip_address": true,
+        "ami_name": "{{user `image_name`}}",
+        "ami_block_device_mappings": [
+            { "device_name": "/dev/sda1",
+                "volume_size": 20,
+                "volume_type": "gp2",
+                "delete_on_termination": true
+            },
+            {
+                "device_name": "/dev/sdb",
+                "virtual_name": "ephemeral0"
+            }
+        ],
+        "launch_block_device_mappings": [
+            { "device_name": "/dev/sda1",
+                "volume_size": 20,
+                "volume_type": "gp2",
+                "delete_on_termination": true
+            },
+            {
+                "device_name": "/dev/sdb",
+                "virtual_name": "ephemeral0"
+            },
+            {
+                "device_name": "/dev/sdc",
+                "virtual_name": "ephemeral1"
+            },
+            {
+                "device_name": "/dev/sdd",
+                "virtual_name": "ephemeral2"
+            }
+        ],
+        "ami_description": "{{user `image_description`}}",
+        "instance_type": "{{user `machine_type`}}",
         "ssh_username": "core"
     }],
     "provisioners": [{

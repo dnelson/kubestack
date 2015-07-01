@@ -1,6 +1,6 @@
 # Kubestack
 
-Provision a Kubernetes cluster with [Packer](https://packer.io) and [Terraform](https://www.terraform.io) on Google Compute Engine.
+Provision a Kubernetes cluster with [Packer](https://packer.io) and [Terraform](https://www.terraform.io) on Amazon Web Services.
 
 ## Status
 
@@ -161,7 +161,7 @@ Outputs:
 
 ### Configure kubectl
 
-Replace `$kubernetes-api-server` with the terraform output. 
+Replace `$kubernetes-api-server` with the terraform output.
 Replace `$token` and `$user` with the info from `terraform/secrets/tokens.csv`.
 
 ```
@@ -206,7 +206,7 @@ ${cluster_name}-kube${count}.c.${project}.internal
 
 Edit `testing-kube0.c.kubestack.internal.json`
 
-``` 
+```
 {
   "kind": "Node",
   "apiVersion": "v1beta3",
