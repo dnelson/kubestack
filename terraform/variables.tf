@@ -13,7 +13,7 @@ variable "flannel_network" {
 }
 
 variable "image" {
-    default = "kubestack-0-17-1-v20150606"
+    default = "ami-0580426e"
 }
 
 variable "project" {}
@@ -23,10 +23,10 @@ variable "portal_net" {
 }
 
 variable "region" {
-    default = "us-central1"
+    default = "us-east"
 }
 
-variable "sshkey_metadata" {}
+variable "key_name" {}
 
 variable "token_auth_file" {
     default = "secrets/tokens.csv"
@@ -37,9 +37,21 @@ variable "worker_count" {
 }
 
 variable "zone" {
-    default = "us-central1-a"
+    default = "us-east-1a"
 }
 
 variable "cluster_name" {
     default = "testing"
+}
+
+variable "machine_type" {
+    default = "t2.micro"
+}
+
+variable "subnet_id" {
+    default = ""
+}
+
+variable "vpc_id" {
+    default = ""
 }

@@ -1,10 +1,11 @@
 account_file = "/etc/kubestack-account.json"
 flannel_backend = "vxlan"
 flannel_network = "10.10.0.0/16"
-image = "kubestack-0-17-1-v20150606"
+image = "ami-0580426e"
 portal_net = "10.200.0.0/16"
-region = "us-central1"
+region = "us-east-1"
 token_auth_file = "secrets/tokens.csv"
-worker_count = 3
-zone = "us-central1-a"
+worker_count = 1
+zone = "us-east-1a"
 cluster_name = "testing"
+machine_type = "t2.micro"

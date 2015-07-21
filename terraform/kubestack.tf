@@ -1,5 +1,5 @@
 output "kubernetes-api-server" {
-    value = "https://${google_compute_instance.kube-apiserver.network_interface.0.access_config.0.nat_ip}:6443"
+    value = "https://${aws_instance.kube-apiserver.private_ip}:6443"
 }
 
 resource "template_file" "etcd" {
@@ -10,69 +10,86 @@ resource "template_file" "etcd" {
     }
 }
 
-resource "template_file" "kubernetes" {
-    filename = "kubernetes.env"
+resource "template_file" "kubernetes_master" {
+    filename = "kubernetes_master.env"
     vars {
-        api_servers = "http://${var.cluster_name}-kube-apiserver.c.${var.project}.internal:8080"
-        etcd_servers = "${join(",", "${formatlist("http://%s:2379", google_compute_instance.etcd.*.network_interface.0.address)}")}"
+        api_servers = "http://127.0.0.1:8080"
+        etcd_servers = "${join(",", "${formatlist("http://%s:2379", aws_instance.etcd.*.private_ip)}")}"
         flannel_backend = "${var.flannel_backend}"
         flannel_network = "${var.flannel_network}"
         portal_net = "${var.portal_net}"
     }
 }
 
-provider "google" {
-    account_file = "${var.account_file}"
-    project = "${var.project}"
+resource "template_file" "kubernetes_worker" {
+    filename = "kubernetes_worker.env"
+    vars {
+        api_servers = "http://${aws_instance.kube-apiserver.private_ip}:8080"
+        etcd_servers = "${join(",", "${formatlist("http://%s:2379", aws_instance.etcd.*.private_ip)}")}"
+        flannel_backend = "${var.flannel_backend}"
+        flannel_network = "${var.flannel_network}"
+        portal_net = "${var.portal_net}"
+    }
+}
+
+provider "aws" {
     region = "${var.region}"
 }
 
-resource "google_compute_firewall" "kubernetes-api" {
+resource "aws_security_group" "kubernetes-api" {
     description = "Kubernetes API"
     name = "secure-kubernetes-api"
-    network = "default"
+    vpc_id = "${var.vpc_id}"
 
-    allow {
+    ingress {
         protocol = "tcp"
-        ports = ["6443"]
+        from_port = 6443
+        to_port = 6443
+        cidr_blocks = ["0.0.0.0/0"]
+
+    }
+    ingress {
+        protocol = "tcp"
+        from_port = 2379
+        to_port = 2380
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+    ingress {
+        protocol = "tcp"
+        from_port = 22
+        to_port = 22
+        cidr_blocks = ["0.0.0.0/0"]
     }
 
-    source_ranges = ["0.0.0.0/0"]
+    egress {
+      from_port = 0
+      to_port = 0
+      protocol = "-1"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+
 }
 
-resource "google_compute_instance" "etcd" {
+resource "aws_instance" "etcd" {
     count = 3
 
-    name = "${var.cluster_name}-etcd${count.index}"
-    machine_type = "n1-standard-1"
-    can_ip_forward = true
-    zone = "${var.zone}"
-    tags = ["etcd"]
+    instance_type = "${var.machine_type}"
+    availability_zone = "${var.zone}"
 
-    disk {
-        image = "${var.image}"
-        size = 200
-    }
-
-    network_interface {
-        network = "default"
-        access_config {
-            // Ephemeral IP
-        }
-    }
-
-    metadata {
-        "sshKeys" = "${var.sshkey_metadata}"
-    }
+    #TODO: replace with map for multi-region?
+    ami = "${var.image}"
+    vpc_security_group_ids = ["${aws_security_group.kubernetes-api.id}"]
+    key_name = "${var.key_name}"
+    subnet_id = "${var.subnet_id}"
 
     provisioner "remote-exec" {
         inline = [
             "cat <<'EOF' > /tmp/kubernetes.env\n${template_file.etcd.rendered}\nEOF",
-            "echo 'ETCD_NAME=${self.name}' >> /tmp/kubernetes.env",
+            "echo 'ETCD_NAME=${var.cluster_name}-kube${count.index}' >> /tmp/kubernetes.env",
             "echo 'ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379' >> /tmp/kubernetes.env",
             "echo 'ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380' >> /tmp/kubernetes.env",
-            "echo 'ETCD_INITIAL_ADVERTISE_PEER_URLS=http://${self.network_interface.0.address}:2380' >> /tmp/kubernetes.env",
-            "echo 'ETCD_ADVERTISE_CLIENT_URLS=http://${self.network_interface.0.address}:2379' >> /tmp/kubernetes.env",
+            "echo 'ETCD_INITIAL_ADVERTISE_PEER_URLS=http://${self.private_ip}:2380' >> /tmp/kubernetes.env",
+            "echo 'ETCD_ADVERTISE_CLIENT_URLS=http://${self.private_ip}:2379' >> /tmp/kubernetes.env",
             "sudo mv /tmp/kubernetes.env /etc/kubernetes.env",
             "sudo systemctl enable etcd",
             "sudo systemctl start etcd"
@@ -88,28 +105,13 @@ resource "google_compute_instance" "etcd" {
     ]
 }
 
-resource "google_compute_instance" "kube-apiserver" {
-    name = "${var.cluster_name}-kube-apiserver"
-    machine_type = "n1-standard-1"
-    can_ip_forward = true
-    zone = "${var.zone}"
-    tags = ["kubernetes"]
-
-    disk {
-        image = "${var.image}"
-        size = 200
-    }
-
-    network_interface {
-        network = "default"
-        access_config {
-            // Ephemeral IP
-        }
-    }
-
-    metadata {
-        "sshKeys" = "${var.sshkey_metadata}"
-    }
+resource "aws_instance" "kube-apiserver" {
+    instance_type = "${var.machine_type}"
+    availability_zone = "${var.zone}"
+    ami = "${var.image}"
+    vpc_security_group_ids = ["${aws_security_group.kubernetes-api.id}"]
+    key_name = "${var.key_name}"
+    subnet_id = "${var.subnet_id}"
 
     provisioner "file" {
         source = "${var.token_auth_file}"
@@ -122,7 +124,7 @@ resource "google_compute_instance" "kube-apiserver" {
 
     provisioner "remote-exec" {
         inline = [
-            "sudo cat <<'EOF' > /tmp/kubernetes.env\n${template_file.kubernetes.rendered}\nEOF",
+            "sudo cat <<'EOF' > /tmp/kubernetes.env\n${template_file.kubernetes_master.rendered}\nEOF",
             "sudo mv /tmp/kubernetes.env /etc/kubernetes.env",
             "sudo mkdir -p /etc/kubernetes",
             "sudo mv /tmp/tokens.csv /etc/kubernetes/tokens.csv",
@@ -144,39 +146,24 @@ resource "google_compute_instance" "kube-apiserver" {
     }
 
     depends_on = [
-        "google_compute_instance.etcd",
-        "template_file.kubernetes",
+        "aws_instance.etcd",
+        "template_file.kubernetes_master",
     ]
 }
 
-resource "google_compute_instance" "kube" {
+resource "aws_instance" "kube" {
     count = "${var.worker_count}"
 
-    name = "${var.cluster_name}-kube${count.index}"
-    can_ip_forward = true
-    machine_type = "n1-standard-1"
-    zone = "${var.zone}"
-    tags = ["kubelet", "kubernetes"]
-
-    disk {
-        image = "${var.image}"
-        size = 200
-    }
-
-    network_interface {
-        network = "default"
-        access_config {
-            // Ephemeral IP
-        }
-    }
-
-    metadata {
-        "sshKeys" = "${var.sshkey_metadata}"
-    }
+    instance_type = "${var.machine_type}"
+    availability_zone = "${var.zone}"
+    ami = "${var.image}"
+    vpc_security_group_ids = ["${aws_security_group.kubernetes-api.id}"]
+    key_name = "${var.key_name}"
+    subnet_id = "${var.subnet_id}"
 
     provisioner "remote-exec" {
         inline = [
-            "sudo cat <<'EOF' > /tmp/kubernetes.env\n${template_file.kubernetes.rendered}\nEOF",
+            "sudo cat <<'EOF' > /tmp/kubernetes.env\n${template_file.kubernetes_worker.rendered}\nEOF",
             "sudo mv /tmp/kubernetes.env /etc/kubernetes.env",
             "sudo systemctl enable flannel",
             "sudo systemctl enable docker",
@@ -194,7 +181,7 @@ resource "google_compute_instance" "kube" {
     }
 
     depends_on = [
-        "google_compute_instance.kube-apiserver",
-        "template_file.kubernetes"
+        "aws_instance.kube-apiserver",
+        "template_file.kubernetes_worker"
     ]
 }

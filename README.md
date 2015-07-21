@@ -52,7 +52,7 @@ project = "kubestack"
 sshkey_metadata = "core: ssh-rsa AAAAB3NzaC1yc2EA..."
 ```
 
-- Add API tokens to `terraform/secrets/tokens.csv`. See [Kubernetes Authentication Plugins](https://github.com/GoogleCloudPlatform/kubernetes/blob/master/docs/authentication.md) for more details.
+- Add API tokens to `terraform/secrets/tokens.csv`. See [Kubernetes Authentication Plugins](https://github.com/GoogleCloudPlatform/kubernetes/blob/release-1.0/docs/authentication.md) for more details.
 
 Example tokens.csv
 
@@ -75,37 +75,8 @@ terraform plan
 terraform apply
 ```
 
-If you run into the follow error try changing the GCE zone and try again.
-
-```
-The zone 'projects/kubestack/zones/us-central1-a' does not have enough resources available to fulfill the request.
-```
-
 ```
 terraform destroy
-```
-
-Get a list of GCE zones.
-
-```
-gcloud compute zones list
-NAME           REGION       STATUS NEXT_MAINTENANCE TURNDOWN_DATE
-asia-east1-c   asia-east1   UP
-asia-east1-a   asia-east1   UP
-asia-east1-b   asia-east1   UP
-europe-west1-c europe-west1 UP
-europe-west1-b europe-west1 UP
-europe-west1-d europe-west1 UP
-us-central1-a  us-central1  UP
-us-central1-b  us-central1  UP
-us-central1-c  us-central1  UP
-us-central1-f  us-central1  UP
-```
-
-Edit `terraform.tfvars`
-
-```
-zone = "us-central1-b"
 ```
 
 Be sure to generate a new etcd discovery token:
