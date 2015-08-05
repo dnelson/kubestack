@@ -38,13 +38,23 @@ provider "aws" {
 
 resource "aws_security_group" "kubernetes-api" {
     description = "Kubernetes API"
-    name = "secure-kubernetes-api"
+    name = "${var.cluster_name}-kubernetes-api"
     vpc_id = "${var.vpc_id}"
+    tags {
+        Name = "Kube SG"
+    }
 
     ingress {
         protocol = "tcp"
         from_port = 6443
         to_port = 6443
+        cidr_blocks = ["0.0.0.0/0"]
+
+    }
+    ingress {
+        protocol = "tcp"
+        from_port = 8080
+        to_port = 8080
         cidr_blocks = ["0.0.0.0/0"]
 
     }
@@ -74,13 +84,16 @@ resource "aws_instance" "etcd" {
     count = 3
 
     instance_type = "${var.machine_type}"
-    availability_zone = "${var.zone}"
-
+    availability_zone = "${lookup(var.zones, concat("zone", count.index))}"
     #TODO: replace with map for multi-region?
     ami = "${var.image}"
     vpc_security_group_ids = ["${aws_security_group.kubernetes-api.id}"]
     key_name = "${var.key_name}"
-    subnet_id = "${var.subnet_id}"
+    subnet_id = "${lookup(var.subnets, lookup(var.zones, concat("zone", count.index)))}"
+    tags {
+        Name = "${var.cluster_name}-etcd${count.index}"
+    }
+
 
     provisioner "remote-exec" {
         inline = [
@@ -112,6 +125,9 @@ resource "aws_instance" "kube-apiserver" {
     vpc_security_group_ids = ["${aws_security_group.kubernetes-api.id}"]
     key_name = "${var.key_name}"
     subnet_id = "${var.subnet_id}"
+    tags {
+        Name = "${var.cluster_name}-kube-api${count.index}"
+    }
 
     provisioner "file" {
         source = "${var.token_auth_file}"
@@ -155,11 +171,15 @@ resource "aws_instance" "kube" {
     count = "${var.worker_count}"
 
     instance_type = "${var.machine_type}"
-    availability_zone = "${var.zone}"
+    availability_zone = "${lookup(var.zones, concat("zone", count.index))}"
     ami = "${var.image}"
     vpc_security_group_ids = ["${aws_security_group.kubernetes-api.id}"]
     key_name = "${var.key_name}"
-    subnet_id = "${var.subnet_id}"
+    subnet_id = "${lookup(var.subnets, lookup(var.zones, concat("zone", count.index)))}"
+    tags {
+        Name = "${var.cluster_name}-kube-worker${count.index}"
+    }
+
 
     provisioner "remote-exec" {
         inline = [

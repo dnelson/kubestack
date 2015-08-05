@@ -1,0 +1,10 @@
+{
+  "kind": "Node",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "ip-10-0-0-104.ec2.internal"
+  },
+  "spec": {
+    "externalID": "10.0.0.104"
+  }
+}

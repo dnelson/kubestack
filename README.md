@@ -79,25 +79,6 @@ terraform apply
 terraform destroy
 ```
 
-Be sure to generate a new etcd discovery token:
-
-```
-curl https://discovery.etcd.io/new?size=3
-https://discovery.etcd.io/2e5df9c06a9d590...
-```
-
-Edit `terraform.tfvars`
-
-```
-discovery_url = "https://discovery.etcd.io/2e5df9c06a9d590..."
-```
-
-Try again.
-
-```
-terraform apply
-```
-
 ### Resize the number of worker nodes
 
 Edit `terraform/terraform.tfvars`. Set `worker_count` to the desired value:
