@@ -10,7 +10,6 @@ Ready for testing. Over the next couple of weeks the repo should be generic enou
 
 - [Install Packer](https://packer.io/docs/installation.html)
 - [Install Terraform](https://www.terraform.io/intro/getting-started/install.html)
-- [Setup an Authentication JSON File](https://www.terraform.io/docs/providers/google/index.html#account_file)
 
 The Packer and Terraform configs assume your authentication JSON file is stored under `/etc/kubestack-account.json`
 
